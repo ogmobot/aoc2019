@@ -27,7 +27,7 @@ def putGrid(
 }
 
 def main() = {
-    val wires = Source.fromFile("input02.txt").getLines().map(
+    val wires = Source.fromFile("input03.txt").getLines().map(
         _.split(",").toList
     ).toList
     val grid_1 = mutable.Map.empty[(Int, Int), Int]
