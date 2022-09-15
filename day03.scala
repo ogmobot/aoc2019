@@ -17,12 +17,10 @@ def putGrid(
     }
     val dist = grid.getOrElse(start, 0)
     val amount = wireSection.substring(1).toInt
-    (1 to amount).map { d =>
-        grid.update(
-            (start._1 + (d * delta._1), (start._2 + (d * delta._2))),
-            dist + d
-        )
-    }
+    (1 to amount).map { d => {
+        val coord = (start._1 + (d * delta._1), (start._2 + (d * delta._2)))
+        grid.update(coord, grid.getOrElse(coord, dist + d))
+    }}
     return (start._1 + (amount * delta._1), start._2 + (amount * delta._2))
 }
 
