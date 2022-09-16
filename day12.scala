@@ -71,9 +71,11 @@ def main(): Unit = {
                                   .toList
     val initial: List[List[Int]] = extractDimensions(moons)
     var cycles: Array[Int] = Array(0, 0, 0)
-    for (timer <- (1 to 250000)) {
+    var timer: Int = 0
+    while (cycles.min == 0) {
         applyGravityToAll(moons)
         moons.map { _.update() }
+        timer += 1
         //printMoons(moons)
 
         // Part 1
@@ -81,16 +83,15 @@ def main(): Unit = {
             println(moons.map { _.energy() } .sum)
         // Part 2
         val current: List[List[Int]] = extractDimensions(moons)
-        for (dim <- (0 until 3)) {
+        for (dim <- (0 until cycles.length)) {
             if (cycles(dim) == 0 && current(dim) == initial(dim))
                 cycles(dim) = timer
         }
     }
     //println(s"${cycles(0)} ${cycles(1)} ${cycles(2)}")
-    if (cycles(0) > 0 && cycles(1) > 0 && cycles(2) > 0)
-        println(
-            lowestCommonMultiple(BigInt(cycles(0)),
-                lowestCommonMultiple(BigInt(cycles(1)), BigInt(cycles(2)))))
+    println(
+        cycles.foldLeft(BigInt(1))((a, b) =>
+            lowestCommonMultiple(a, BigInt(b))))
 }
 
 main()
