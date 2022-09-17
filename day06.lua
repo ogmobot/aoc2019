@@ -17,31 +17,11 @@ get_orbits = function(filename)
     return res
 end
 
-distance_to_com = function(orbits, moon, cache)
-    if not cache[moon] then
-        if orbits[moon] == centre_of_mass then
-            cache[moon] = 1
-        else
-            cache[moon] = 1 + distance_to_com(orbits, orbits[moon], cache)
-        end
-    end
-    return cache[moon]
-end
-
 path_to_com = function(orbits, moon)
-    if moon == centre_of_mass then
-        return {[1] = centre_of_mass}
-    else
-        local tmp = path_to_com(orbits, orbits[moon])
-        table.insert(tmp, moon)
-        return tmp
-    end
-end
-
-calc_distances = function(orbits)
-    local res = {}
-    for k, _ in pairs(orbits) do
-        res[k] = distance_to_com(orbits, k, res)
+    local res = {[1] = moon}
+    while (moon ~= centre_of_mass) do
+        moon = orbits[moon]
+        table.insert(res, moon)
     end
     return res
 end
@@ -50,19 +30,27 @@ main = function()
     local orbits = get_orbits("input06.txt")
     -- Part 1
     local total = 0
-    for _, v in pairs(calc_distances(orbits)) do
-        total = total + v
+    for _, moon in pairs(orbits) do
+        total = total + (# path_to_com(orbits, moon))
     end
     print(total)
     -- Part 2
     local you_to_com = path_to_com(orbits, your_location)
     local san_to_com = path_to_com(orbits, santa_location)
-    while you_to_com[1] == san_to_com[1] do
-        table.remove(you_to_com, 1)
-        table.remove(san_to_com, 1)
+    while table.remove(you_to_com) == table.remove(san_to_com) do
+        --[[
+        Comparing the paths in this way is destructive, and in addition to the
+        common nodes, one extra node is removed from both paths!
+        For instance:
+            (COM) -- (A) -- (B) -- (C) -- (YOU)
+                        \
+                         (D) -- (E) -- (SAN)
+        In this scenario, nodes (B) and (D) would be removed from both paths.
+        (However, since we shouldn't include our starting points, this saves us
+        the trouble of subtracting one from each path length)
+        --]]
     end
-    -- Don't include starting points in path length
-    print((# you_to_com - 1) + (# san_to_com - 1))
+    print((# you_to_com) + (# san_to_com))
 end
 
 main()
