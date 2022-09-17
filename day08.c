@@ -6,30 +6,18 @@
 #define S_BLACK     ' '
 #define S_WHITE     '@'
 
-int read_layer(FILE *fp, char *buffer) {
-    int n_zeros = 0;
+struct counter {
+    int freqs[3]; /* Assume only 0, 1, 2 can appear */
+};
+
+struct counter read_layer(FILE *fp, char *buffer) {
+    struct counter res = {0};
     for (int i = 0; i < (LAYER_WIDTH * LAYER_HEIGHT); i++) {
         buffer[i] = fgetc(fp);
-        if (buffer[i] == '0')
-            n_zeros++;
+        if ('0' <= buffer[i] && buffer[i] <= '2')
+            res.freqs[buffer[i] - '0']++;
     }
-    return n_zeros;
-}
-
-int score_layer(char *layer) {
-    int num_ones = 0;
-    int num_twos = 0;
-    for (int i = 0; i < (LAYER_WIDTH * LAYER_HEIGHT); i++) {
-        switch (layer[i]) {
-        case '1':
-            num_ones++;
-            break;
-        case '2':
-            num_twos++;
-            break;
-        }
-    }
-    return num_ones * num_twos;
+    return res;
 }
 
 void apply_layer(char *layer, char *buffer) {
@@ -61,16 +49,16 @@ int main(void) {
     FILE *fp = fopen("input08.txt", "r");
     /* Part 1 */
     int min_zeros = LAYER_WIDTH * LAYER_HEIGHT;
-    int zero_layer = 0;
+    int score = 0;
     for (int i = 0; i < NUM_LAYERS; i++) {
-        int tmp = read_layer(fp, layers[i]);
-        if (tmp <= min_zeros) {
-            min_zeros = tmp;
-            zero_layer = i;
+        struct counter tmp = read_layer(fp, layers[i]);
+        if (tmp.freqs[0] <= min_zeros) {
+            min_zeros = tmp.freqs[0];
+            score = tmp.freqs[1] * tmp.freqs[2];
         }
     }
     fclose(fp);
-    printf("%d\n", score_layer(layers[zero_layer]));
+    printf("%d\n", score);
     /* Part 2 */
     char display[LAYER_WIDTH * LAYER_HEIGHT] = {0};
     for (int i = 0; i < NUM_LAYERS; i++)
