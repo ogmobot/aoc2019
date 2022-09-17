@@ -49,25 +49,20 @@ end
 main = function()
     local orbits = get_orbits("input06.txt")
     -- Part 1
-    local distances = calc_distances(orbits)
     local total = 0
-    for _, v in pairs(distances) do
+    for _, v in pairs(calc_distances(orbits)) do
         total = total + v
     end
     print(total)
     -- Part 2
     local you_to_com = path_to_com(orbits, your_location)
     local san_to_com = path_to_com(orbits, santa_location)
-    local num_equal = 0
-    for i = 1, (# you_to_com) do
-        if you_to_com[i] == san_to_com[i] then
-            num_equal = num_equal + 1
-        else
-            break
-        end
+    while you_to_com[1] == san_to_com[1] do
+        table.remove(you_to_com, 1)
+        table.remove(san_to_com, 1)
     end
     -- Don't include starting points in path length
-    print((# you_to_com - 1) + (# san_to_com - 1) - (2 * num_equal))
+    print((# you_to_com - 1) + (# san_to_com - 1))
 end
 
 main()
