@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 from math import atan2
 
-S_ASTEROID = "#"
-S_SPACE    = "."
-
 def read_asteroids(filename: str) -> list[tuple[int, int]]:
     with open(filename, "r") as fp:
         return [
