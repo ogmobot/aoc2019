@@ -12,10 +12,10 @@ class Moon(
             if (other.pos(dim) > pos(dim)) vel(dim) += 1
             if (other.pos(dim) < pos(dim)) vel(dim) -= 1
         }
-    def update(): Unit =
+    def update: Unit =
         for (dim <- 0 until pos.length)
             pos(dim) += vel(dim)
-    def energy(): Int = pos.map{ _.abs }.sum * vel.map{ _.abs }.sum
+    def energy: Int = pos.map(_.abs).sum * vel.map(_.abs).sum
 }
 
 // Logic functions
@@ -23,7 +23,7 @@ class Moon(
 def lowestCommonMultiple(a: BigInt, b: BigInt): BigInt = a * b / a.gcd(b)
 
 def applyGravityToAll(moons: Array[Moon]): Unit =
-    moons.map(m => moons.map{ _.applyGravity(m) })
+    moons.map(m => moons.map(_.applyGravity(m)))
 
 def extractDimensions(moons: Array[Moon]): Array[Array[Int]] =
     moons.map(m => Array(m.pos, m.vel)).reduce((a, b) => a ++ b).transpose
@@ -56,13 +56,13 @@ def main(): Unit = {
     var timer: Int = 0
     while (cycles.min == 0) {
         applyGravityToAll(moons)
-        moons.map{ _.update() }
+        moons.map( _.update)
         timer += 1
         //printMoons3D(moons)
 
         // Part 1
         if (timer == 1000)
-            println(moons.map{ _.energy() }.sum)
+            println(moons.map(_.energy).sum)
         // Part 2
         val current: Array[Array[Int]] = extractDimensions(moons)
         for (dim <- 0 until cycles.length)
