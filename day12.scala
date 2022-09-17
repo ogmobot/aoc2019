@@ -56,7 +56,7 @@ def main(): Unit = {
     var timer: Int = 0
     while (cycles.min == 0) {
         applyGravityToAll(moons)
-        moons.map( _.update)
+        moons.map(_.update)
         timer += 1
         //printMoons3D(moons)
 
