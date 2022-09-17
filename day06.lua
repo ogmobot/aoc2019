@@ -47,18 +47,18 @@ calc_distances = function(orbits)
 end
 
 main = function()
-    orbits = get_orbits("input06.txt")
-    distances = calc_distances(orbits)
+    local orbits = get_orbits("input06.txt")
     -- Part 1
-    total = 0
+    local distances = calc_distances(orbits)
+    local total = 0
     for _, v in pairs(distances) do
         total = total + v
     end
     print(total)
     -- Part 2
-    you_to_com = path_to_com(orbits, your_location)
-    san_to_com = path_to_com(orbits, santa_location)
-    num_equal = 0
+    local you_to_com = path_to_com(orbits, your_location)
+    local san_to_com = path_to_com(orbits, santa_location)
+    local num_equal = 0
     for i = 1, (# you_to_com) do
         if you_to_com[i] == san_to_com[i] then
             num_equal = num_equal + 1
