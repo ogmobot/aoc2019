@@ -6,8 +6,7 @@ import scala.collection.immutable
 class Maze() {
     // Always index these with (row, col)
     val pos = mutable.Map.empty[(Int, Int), Char]
-    var start: (Int, Int) = (0, 0)
-    var numKeys: Int = 0
+    val keyLocations = mutable.Map.empty[Char, (Int, Int)]
 
     def adjacent(initial: (Int, Int)): List[(Int, Int)] = {
         val (row, col) = initial
@@ -19,6 +18,7 @@ class Maze() {
 
 case class State(position: (Int, Int), collected: immutable.Set[Char])
 case class SearchNode(distance: Int, state: State)
+case class Requirement(distance: Int, keys: immutable.Set[Char])
 
 def readMaze(filename: String): Maze = {
     val lines: Iterator[String] = Source.fromFile(filename).getLines()
@@ -26,60 +26,67 @@ def readMaze(filename: String): Maze = {
     lines.zipWithIndex.foreach{ case (line, row) => {
         line.zipWithIndex.foreach{ case (char, col) => {
             maze.pos.update((row, col), char)
-            if (char == '@')
-                maze.start = (row, col)
-            if ('a' <= char && char <= 'z')
-                maze.numKeys += 1
+            if (char == '@' || ('a' <= char && char <= 'z'))
+                maze.keyLocations.update(char, (row, col))
         }}
     }}
     return maze
 }
 
-// Naive approach -- used it to discover the solution is longer than 2970 steps.
-// The process took ~90 min.
-def _getKeys(maze: Maze): Int = {
-    val seenStates = mutable.Set.empty[State]
-    var toSearch = mutable.PriorityQueue.empty[SearchNode](
-        Ordering.by((_: SearchNode).distance).reverse
+def keyToKey(maze: Maze, fromKey: Char, toKey: Char): Requirement = {
+    val seenPositions = mutable.Set.empty[(Int, Int)]
+    // Each node in this list has (distance, (row, col))
+    var toSearch = mutable.PriorityQueue.empty[(Requirement, (Int, Int))](
+        Ordering.by((_: (Requirement, (Int, Int)))._1.distance).reverse
     )
     toSearch.enqueue(
-        SearchNode(0, State(maze.start, immutable.Set.empty[Char]))
+        (Requirement(0, immutable.Set.empty[Char]), maze.keyLocations(fromKey))
     )
-    var highestDistance: Int = 0
     while (toSearch.length > 0) {
-        var node = toSearch.dequeue()
-        if (node.distance > highestDistance) {
-            println("Searching paths of distance=")
-            println(node.distance)
-            highestDistance = node.distance
-        }
-        seenStates.add(node.state)
-        val current =  maze.pos(node.state.position)
-        if ('a' <= current && current <= 'z')
-            node = SearchNode(
-                node.distance,
-                State(node.state.position, node.state.collected + current)
-            )
-        if (node.state.collected.size == maze.numKeys)
-            return node.distance
-        val opts: List[SearchNode] =
-            maze.adjacent(node.state.position).filter(x =>
-                maze.pos(x) < 'A' || maze.pos(x) > 'Z' ||
-                    node.state.collected.contains(maze.pos(x).toLower)
-            )
-            .map(x =>
-                SearchNode(
-                    node.distance + 1,
-                    State(x, node.state.collected)))
-            .filter(x => !seenStates.contains(x.state))
+        val (requirement, position) = toSearch.dequeue()
+        seenPositions.add(position)
+        val current =  maze.pos(position)
+        if (current == toKey)
+            return requirement
+
+        val newRequirement = Requirement(
+            requirement.distance + 1,
+            if ('A' <= current && current <= 'Z')
+                requirement.keys + current.toLower
+            else
+                requirement.keys
+        )
+        val opts: List[(Requirement, (Int, Int))] =
+            maze.adjacent(position)
+                .filter(x => !seenPositions.contains(x))
+                .map(x => (newRequirement, x))
         toSearch ++= opts
     }
-    return -1
+    return Requirement(-1, immutable.Set.empty[Char])
+}
+
+def getReqMatrix(maze: Maze): mutable.Map[(Char, Char), Requirement] = {
+    // Produces a Map for which entry (a, b) contains a Requirement* to get from
+    // key a to key b.
+    // The Requirement is the steps required, and the set of keys needed.
+    val keyNames = maze.keyLocations.keys.toArray
+    val result = mutable.Map.empty[(Char, Char), Requirement]
+    keyNames.map( a =>
+        keyNames.map(b =>
+            if (a != b && !result.contains((a, b))) {
+                val req = keyToKey(maze, a, b)
+                result.update((a, b), req)
+                result.update((b, a), req)
+            }
+        )
+    )
+    return result
 }
 
 def main(): Unit = {
     val maze = readMaze("input18.txt")
-    println(getKeys(maze))
+    // Takes ~7s to build this
+    val reqMatrix = getReqMatrix(maze)
 }
 
 main()
