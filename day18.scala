@@ -20,7 +20,7 @@ case class Requirement(distance: Int, keys: immutable.Set[Char])
 
 def readMaze(filename: String): Maze = {
     val lines: Iterator[String] = Source.fromFile(filename).getLines()
-    var maze = new Maze
+    val maze = new Maze
     lines.zipWithIndex.foreach{ case (line, row) => {
         line.zipWithIndex.foreach{ case (char, col) => {
             maze.pos.update((row, col), char)
@@ -29,6 +29,41 @@ def readMaze(filename: String): Maze = {
         }}
     }}
     return maze
+}
+
+def quadrify(maze: Maze): Array[Maze] = {
+    // This is not the best method of solving this problem.
+    // It'd be better to just keep track of where the four robots are in a
+    // single maze.
+    val cRow: Int = maze.keyLocations('@')._1
+    val cCol: Int = maze.keyLocations('@')._2
+    val maxRow = maze.pos.keys.map(_._1).max
+    val maxCol = maze.pos.keys.map(_._2).max
+    val pos = maze.pos.clone()
+    Array(
+        (cRow, cCol), (cRow + 1, cCol), (cRow - 1, cCol),
+                      (cRow, cCol + 1), (cRow, cCol - 1)
+    ).foreach(coord => pos.update(coord, '#'))
+    Array(
+        (cRow + 1, cCol + 1), (cRow + 1, cCol - 1),
+        (cRow - 1, cCol + 1), (cRow - 1, cCol - 1)
+    ).foreach(coord => pos.update(coord, '@'))
+    Array(
+        ((0 to cRow), (0 to cCol)),
+        ((cRow to maxRow), (0 to cCol)),
+        ((0 to cRow), (cCol to maxCol)),
+        ((cRow to maxRow), (cCol to maxCol))
+    ).map{ case (rowRange, colRange) => {
+        val m = new Maze
+        rowRange.map(row => {
+            colRange.map(col => {
+                m.pos((row, col)) = pos((row, col))
+                if (m.pos((row, col)) == '@' || m.pos((row, col)).isLower)
+                    m.keyLocations.update(m.pos((row, col)), (row, col))
+            })
+        })
+        m
+    }}
 }
 
 def keyToKey(maze: Maze, fromKey: Char, toKey: Char): Requirement = {
@@ -74,12 +109,31 @@ def getReqMatrix(maze: Maze): mutable.Map[(Char, Char), Requirement] = {
         keyNames.map(b =>
             if (a != b && !result.contains((a, b))) {
                 val req = keyToKey(maze, a, b)
-                result.update((a, b), req)
-                result.update((b, a), req)
+                if (req.distance != -1) {
+                    result.update((a, b), req)
+                    result.update((b, a), req)
+                }
             }
         )
     )
     return result
+}
+
+def robotPositions(
+    path: List[Char],
+    reqMatrix: mutable.Map[(Char, Char), Requirement]
+): immutable.Set[Char] = {
+    var covered = Set('@')
+    var res = immutable.Set.empty[Char]
+    var index = 0
+    while (covered.size < path.length) {
+        while (covered.contains(path(index)))
+            index += 1
+        res += path(index)
+        covered += path(index)
+        covered ++= path.filter(x => reqMatrix.contains((path(index), x)))
+    }
+    return res
 }
 
 def calcDistance(
@@ -89,40 +143,64 @@ def calcDistance(
     if (path.length <= 1)
         0
     else
-        path.zip(path.tail).map(pair => reqMatrix(pair).distance).sum
+        // In part 2, pairs of values aren't necessarily in the same submaze
+        reqMatrix(
+            path.head,
+            path.tail
+                .filter(x => reqMatrix.contains((path.head, x)))
+                .head
+        ).distance + calcDistance(path.tail, reqMatrix)
 
-def solveMaze(maze: Maze, startKey: Char): Int = {
-    println("Building Requirement matrix...")
-    val reqMatrix = getReqMatrix(maze) // Takes a second or two to calculate
+def solveMaze(
+    mazes: Array[Maze],
+    reqMatrix: mutable.Map[(Char, Char), Requirement]
+): Int = {
     println("Solving maze...")
     var toSearch = mutable.PriorityQueue.empty[List[Char]](
         Ordering.by(calcDistance(_: List[Char], reqMatrix)).reverse
     )
     // For each search node, first char is most recently visited
-    val minDists = mutable.Map.empty[(immutable.Set[Char], Char), Int]
+    // minDists is (collected keys, robot positions) => distance
+    val minDists = mutable.Map.empty[(
+        immutable.Set[Char],
+        immutable.Set[Char]
+    ), Int]
+    val keyLocations = mazes.map(_.keyLocations)
+                            .foldLeft(
+                                mutable.Map.empty[Char, (Int, Int)]
+                            )((a, b) => a ++ b)
     toSearch.enqueue(List('@'))
-    //var farthestDist = 0
+    var farthestDist = 0
     while (toSearch.length > 0) {
         val path = toSearch.dequeue()
         var distance = calcDistance(path, reqMatrix)
-        //if (distance > farthestDist) {
-            //println("Distance", distance)
-            //farthestDist = distance
-        //}
+        if (distance > farthestDist) {
+            if (distance mod 100 == 0)
+                println("Distance", distance)
+            farthestDist = distance
+        }
         //println("path", path.reverse, "distance", distance)
-        if ((!minDists.contains((path.toSet, path.head))) ||
-                (minDists((path.toSet, path.head)) > distance)) {
-            minDists.update((path.toSet, path.head), distance)
-            if (path.length == maze.keyLocations.size) {
+        var rPositions = robotPositions(path, reqMatrix)
+        if (rPositions.size < mazes.length)
+            rPositions += '@'
+        if ((!minDists.contains((path.toSet, rPositions))) ||
+                (minDists((path.toSet, rPositions)) > distance)) {
+            minDists.update((path.toSet, rPositions), distance)
+            if (path.length == keyLocations.size) {
                 println(path.reverse)
                 return distance
             }
 
             val opts: List[List[Char]] =
-                maze.keyLocations.keys.toList
+                keyLocations.keys.toList
                     .filter(x => !(path.contains(x)))
                     .filter(x =>
-                        reqMatrix((path.head, x)).keys.subsetOf(path.toSet)
+                        rPositions
+                            .map(rPos =>
+                                (reqMatrix.contains((rPos, x)) &&
+                                reqMatrix((rPos, x)).keys.subsetOf(path.toSet))
+                            )
+                            .exists(p => p)
                     )
                     .map(x => x :: path)
             toSearch ++= opts
@@ -131,10 +209,29 @@ def solveMaze(maze: Maze, startKey: Char): Int = {
     return -1
 }
 
+def solveSingle(maze: Maze): Int = {
+    println("Building Requirement matrix...")
+    val reqMatrix = getReqMatrix(maze) // Takes a second or two to calculate
+    solveMaze(Array(maze), reqMatrix)
+}
+
+def solveSimul(mazes: Array[Maze]): Int = {
+    println("Building Requirement matrices...")
+    val reqMatrices = mazes.map(getReqMatrix)
+    solveMaze(
+        mazes,
+        reqMatrices.foldLeft(
+            mutable.Map.empty[(Char, Char), Requirement]
+        )((a, b) => a ++ b)
+    )
+}
+
 def main(): Unit = {
     val maze = readMaze("input18.txt")
-    // Part 1 (takes ~40s)
-    println(solveMaze(maze, '@'))
+    // Part 1 (takes ~100s)
+    println(solveSingle(maze))
+    // Part 2 (takes ~500s)
+    println(solveSimul(quadrify(maze)))
 }
 
 main()
