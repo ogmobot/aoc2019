@@ -170,16 +170,9 @@ def solveMaze(
                                 mutable.Map.empty[Char, (Int, Int)]
                             )((a, b) => a ++ b)
     toSearch.enqueue(List('@'))
-    var farthestDist = 0
     while (toSearch.length > 0) {
         val path = toSearch.dequeue()
         var distance = calcDistance(path, reqMatrix)
-        if (distance > farthestDist) {
-            if (distance mod 100 == 0)
-                println("Distance", distance)
-            farthestDist = distance
-        }
-        //println("path", path.reverse, "distance", distance)
         var rPositions = robotPositions(path, reqMatrix)
         if (rPositions.size < mazes.length)
             rPositions += '@'
