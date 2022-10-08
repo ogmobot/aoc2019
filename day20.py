@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env pypy3
 import sys
 
 class PortalMaze:
@@ -107,13 +107,8 @@ def main():
     # Part 1
     maze = PortalMaze("input20.txt")
     print(maze.find_path_length(maze.start, maze.end))
-    #portals = []
-    #for p in path:
-        #if p in maze.portals:
-            #portals.append(maze.portal_names[p])
-    #print(portals)
 
-    # Part 2 (Takes ~20 sec)
+    # Part 2 (Takes ~15 sec)
     rec_maze = RecursiveMaze(maze)
     print(rec_maze.find_path_length(rec_maze.start, rec_maze.end))
 
