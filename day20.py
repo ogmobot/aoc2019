@@ -59,17 +59,17 @@ class PortalMaze:
             res.append(self.portals[coord])
         return res
 
-    def find_path(self, start, end):
-        to_search = [[start]]
+    def find_path_length(self, start, end):
+        to_search = [(start, 0)]
         visited = set()
         while to_search:
             path = to_search.pop(0)
             if path[0] == end:
-                return path
+                return path[1]
             visited.add(path[0])
             for adj in self.get_adjacent(path[0]):
                 if adj not in visited:
-                    to_search.append([adj] + path)
+                    to_search.append((adj, path[1] + 1))
         return None
 
 class RecursiveMaze(PortalMaze):
@@ -106,19 +106,16 @@ class RecursiveMaze(PortalMaze):
 def main():
     # Part 1
     maze = PortalMaze("input20.txt")
-    path = maze.find_path(maze.start, maze.end)
-    #print(path)
-    print(len(path) - 1) # path includes start point
+    print(maze.find_path_length(maze.start, maze.end))
     #portals = []
     #for p in path:
         #if p in maze.portals:
             #portals.append(maze.portal_names[p])
     #print(portals)
 
-    # Part 2 (Takes ~10 min)
+    # Part 2 (Takes ~20 sec)
     rec_maze = RecursiveMaze(maze)
-    path = rec_maze.find_path(rec_maze.start, rec_maze.end)
-    print(len(path) - 1)
+    print(rec_maze.find_path_length(rec_maze.start, rec_maze.end))
 
 if __name__ == "__main__":
     main()
