@@ -88,7 +88,6 @@ def update_universe_3d(universe: set) -> set:
                 continue
             for layer in range(lowest_layer - 1, highest_layer + 2):
                 n_adj = count_adjacent_3d(universe, row, col, layer)
-                #print(f"{(row, col, layer)} has {n_adj} neighoburs")
                 if (row, col, layer) in universe:
                     if n_adj == 1:
                         result.add((row, col, layer))
@@ -96,26 +95,6 @@ def update_universe_3d(universe: set) -> set:
                     if n_adj == 1 or n_adj == 2:
                         result.add((row, col, layer))
     return result
-
-def display(universe: set) -> None:
-    if len(list(universe)[0]) == 2:
-        for row in range(5):
-            print(" ".join([
-                {True: "#", False: "."}.get(
-                    (row, col) in universe)
-                for col in range(5)
-            ]))
-    else:
-        lowest_layer  = min(coord[2] for coord in universe)
-        highest_layer = max(coord[2] for coord in universe)
-        for layer in range(lowest_layer, highest_layer + 1):
-            print(f"Layer {layer}:")
-            for row in range(5):
-                print(" ".join([
-                    {True: "#", False: "."}.get(
-                        (row, col, layer) in universe)
-                    for col in range(5)
-                ]))
 
 def main():
     with open("input24.txt", "r") as f:
