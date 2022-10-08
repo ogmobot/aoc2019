@@ -1,0 +1,17 @@
+south
+take space heater
+east
+north
+west
+south
+take antenna
+north
+east
+south
+east
+north
+take klein bottle
+north
+take spool of cat6
+west
+north
