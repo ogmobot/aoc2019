@@ -1,21 +1,10 @@
 #!/usr/bin/env pypy3
 
-S_ALIVE = '#'
-
-def load_universe_2d(lines: list) -> set:
+def load_universe(fp) -> set:
     result = set()
-    for row, line in enumerate(lines):
+    for row, line in enumerate(fp):
         for col, symbol in enumerate(line):
-            if symbol == S_ALIVE:
-                result.add((row, col))
-    return result
-
-def load_universe_3d(lines: list) -> set:
-    # Well, kind of 3d.
-    result = set()
-    for row, line in enumerate(lines):
-        for col, symbol in enumerate(line):
-            if symbol == S_ALIVE:
+            if symbol == "#":
                 result.add((row, col, 0))
     return result
 
@@ -23,12 +12,12 @@ def universe_value(universe: set) -> int:
     total = 0
     for row in range(5):
         for col in range(5):
-            total += (int((row, col) in universe) << ((5 * row) + col))
+            total += (int((row, col, 0) in universe) << ((5 * row) + col))
     return total
 
 def count_adjacent_2d(universe: set, row: int, col: int) -> int:
     return sum(
-        (row + dr, col + dc) in universe
+        (row + dr, col + dc, 0) in universe
         for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1))
     )
 
@@ -65,29 +54,23 @@ def count_adjacent_3d(universe: set, row: int, col: int, layer: int) -> int:
         total += int((row, col + 1, layer) in universe)
     return total
 
-def update_universe_2d(universe: set) -> set:
+def update_universe(universe: set, layered: bool) -> set:
     result = set()
+    if layered:
+        lowest_layer  = min(coord[2] for coord in universe)
+        highest_layer = max(coord[2] for coord in universe)
+        all_layers = [l for l in range(lowest_layer - 1, highest_layer + 2)]
+    else:
+        all_layers = (0,)
     for row in range(5):
         for col in range(5):
-            n_adj = count_adjacent_2d(universe, row, col)
-            if (row, col) in universe:
-                if n_adj == 1:
-                    result.add((row, col))
-            else:
-                if n_adj == 1 or n_adj == 2:
-                    result.add((row, col))
-    return result
-
-def update_universe_3d(universe: set) -> set:
-    result = set()
-    lowest_layer  = min(coord[2] for coord in universe)
-    highest_layer = max(coord[2] for coord in universe)
-    for row in range(5):
-        for col in range(5):
-            if row == 2 and col == 2:
+            if layered and row == 2 and col == 2:
                 continue
-            for layer in range(lowest_layer - 1, highest_layer + 2):
-                n_adj = count_adjacent_3d(universe, row, col, layer)
+            for layer in all_layers:
+                if layered:
+                    n_adj = count_adjacent_3d(universe, row, col, layer)
+                else:
+                    n_adj = count_adjacent_2d(universe, row, col)
                 if (row, col, layer) in universe:
                     if n_adj == 1:
                         result.add((row, col, layer))
@@ -98,21 +81,23 @@ def update_universe_3d(universe: set) -> set:
 
 def main():
     with open("input24.txt", "r") as f:
-        lines = f.readlines()
+        orig = load_universe(f)
 
-    universe_p1 = load_universe_2d(lines)
+    # Part 1
+    u = orig.copy()
     seen_values = set()
-    val = universe_value(universe_p1)
+    val = universe_value(u)
     while val not in seen_values:
         seen_values.add(val)
-        universe_p1 = update_universe_2d(universe_p1)
-        val = universe_value(universe_p1)
+        u = update_universe(u, False)
+        val = universe_value(u)
     print(val)
 
-    universe_p2 = load_universe_3d(lines)
+    # Part 2
+    u = orig.copy()
     for _ in range(200):
-        universe_p2 = update_universe_3d(universe_p2)
-    print(len(universe_p2))
+        u = update_universe(u, True)
+    print(len(u))
 
 if __name__ == "__main__":
     main()

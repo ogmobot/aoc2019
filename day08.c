@@ -29,6 +29,9 @@ void apply_layer(char *layer, char *buffer) {
         case '1':
             buffer[i] = S_WHITE;
             break;
+        case '2':
+        default:
+            break;
         }
     }
     return;

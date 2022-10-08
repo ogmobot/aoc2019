@@ -71,6 +71,13 @@ void populate_buffer(char *filename, struct message *m) {
     return;
 }
 
+void output_array_i32(int32_t *buffer, size_t n) {
+    for (size_t i = 0; i < n; i++)
+        printf("%d", *buffer++);
+    printf("\n");
+    return;
+}
+
 /* Program logic */
 
 int32_t pattern_at(size_t input_index, size_t output_pos) {
@@ -186,9 +193,7 @@ int main(void) {
     for (size_t i = 0; i < 100; i++) {
         apply_transform(m);
     }
-    printf("%d%d%d%d%d%d%d%d\n",
-        m->data[0], m->data[1], m->data[2], m->data[3],
-        m->data[4], m->data[5], m->data[6], m->data[7]);
+    output_array_i32(m->data, 8);
 
     populate_buffer("input16.txt", m);
     size_t offset = get_offset(m);
@@ -197,10 +202,7 @@ int main(void) {
     for (size_t i = 0; i < 100; i++) {
         apply_first_pass(m, offset); /* Assume offset > (size / 2) */
     }
-    printf("%d%d%d%d%d%d%d%d\n",
-        m->data[offset + 0], m->data[offset + 1], m->data[offset + 2],
-        m->data[offset + 3], m->data[offset + 4], m->data[offset + 5],
-        m->data[offset + 6], m->data[offset + 7]);
+    output_array_i32(m->data + offset, 8);
 
     free_message(m);
     return 0;
