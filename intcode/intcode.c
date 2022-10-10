@@ -66,7 +66,7 @@ void initialise_vm_from_file(struct intcode_vm *vm, char *filename) {
     num_t num_reader;
     char char_reader;
     FILE *fp = fopen(filename, "r");
-    while (fscanf(fp, "%d%c", &num_reader, &char_reader) != EOF) {
+    while (fscanf(fp, "%ld%c", &num_reader, &char_reader) != EOF) {
         set_memory_direct(vm, mem_index++, num_reader);
         if (char_reader != ',')
             break;
@@ -128,9 +128,9 @@ num_t pop_output(struct intcode_vm *vm) {
 
 /* CPU emulation */
 
-static int digit_at(num_t value, size_t place) {
+static enum param digit_at(num_t value, size_t place) {
     /* e.g. digit_at(3456, 100) => 4 */
-    return (value / place) % 10;
+    return (enum param) ((value / place) % 10);
 }
 
 static void increment_pc(struct intcode_vm *vm) {
@@ -144,8 +144,8 @@ static void increment_pc(struct intcode_vm *vm) {
     case 4: /* output */
         (vm->pc) += 2;
         return;
-    case 5: /* input */
-    case 6: /* output */
+    case 5: /* jump-if-true */
+    case 6: /* jump-if-false */
         (vm->pc) += 3;
         return;
     case 7: /* less than */
@@ -158,8 +158,90 @@ static void increment_pc(struct intcode_vm *vm) {
     case 99: /* halt */
         return;
     default:
-        printf("Unrecognised opcode %d\n", opcode);
+        printf("Unrecognised opcode %ld\n", opcode);
         (vm->pc) += 1;
         return;
     }
+}
+
+static enum stepcode step_vm(struct intcode_vm *vm) {
+    num_t opcode = get_memory_direct(vm, vm->pc);
+    num_t args[3];
+    enum param mode[3];
+    size_t place = 100;
+    for (size_t i = 0; i < 3; i++) {
+        args[i] = get_memory_direct(vm, vm->pc + i + 1);
+        mode[i] = digit_at(opcode, place);
+        place *= 10;
+    }
+    increment_pc(vm);
+    switch (opcode % 100) {
+    case 1: /* add */
+        set_vm_value(vm, mode[2], args[2],
+            get_vm_value(vm, mode[0], args[0])
+                +
+            get_vm_value(vm, mode[1], args[1])
+        );
+        return F_OKAY;
+    case 2: /* multiply */
+        set_vm_value(vm, mode[2], args[2],
+            get_vm_value(vm, mode[0], args[0])
+                *
+            get_vm_value(vm, mode[1], args[1])
+        );
+        return F_OKAY;
+    case 3: /* input */
+        if (vm->input.reader == vm->input.writer) {
+            /* reset pc so this instruction can be repeated */
+            (vm->pc) -= 2;
+            return F_REQUIRE_INPUT;
+        } else {
+            set_vm_value(vm, mode[0], args[0], read_io_buffer(&(vm->input)));
+            return F_OKAY;
+        }
+    case 4: /* output */
+        write_io_buffer(&(vm->output), get_vm_value(vm, mode[0], args[0]));
+        return F_PUSHED_OUTPUT;
+    case 5: /* jump-if-true */
+        if (get_vm_value(vm, mode[0], args[0]))
+            vm->pc = get_vm_value(vm, mode[1], args[1]);
+        return F_OKAY;
+    case 6: /* jump-if-false */
+        if (!get_vm_value(vm, mode[0], args[0]))
+            vm->pc = get_vm_value(vm, mode[1], args[1]);
+        return F_OKAY;
+    case 7: /* less-than */
+        set_vm_value(vm, mode[2], args[2],
+            get_vm_value(vm, mode[0], args[0])
+                <
+            get_vm_value(vm, mode[1], args[1])
+        );
+        return F_OKAY;
+    case 8: /* equals */
+        set_vm_value(vm, mode[2], args[2],
+            get_vm_value(vm, mode[0], args[0])
+                ==
+            get_vm_value(vm, mode[1], args[1])
+        );
+        return F_OKAY;
+    case 9: /* adjust offset */
+        vm->relbase += get_vm_value(vm, mode[0], args[0]);
+        return F_OKAY;
+    case 99: /* halt */
+        return F_HALTED;
+    }
+    return F_CRASHED;
+}
+
+void run_vm(struct intcode_vm *vm, int stop_at_output) {
+    int stopflags = ((int) F_HALTED)
+                  | ((int) F_CRASHED)
+                  | ((int) F_REQUIRE_INPUT);
+    if (stop_at_output)
+        stopflags |= F_PUSHED_OUTPUT;
+    int res = (int) F_OKAY;
+    do {
+        res = (int) step_vm(vm);
+    } while (!(res & stopflags));
+    return;
 }

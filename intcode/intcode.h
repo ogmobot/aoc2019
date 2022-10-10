@@ -1,7 +1,7 @@
 #ifndef INTCODE_H
 
 #include <stdint.h>
-#define num_t               int32_t
+#define num_t               int64_t
 #define INITIAL_MEMORY_SIZE 1024
 #define IO_BUFFER_LENGTH    1024
 
@@ -11,6 +11,14 @@ enum param {
     P_INDIRECT  = 0,
     P_IMMEDIATE = 1,
     P_OFFSET    = 2
+};
+
+enum stepcode {
+    F_OKAY          = 0x00,
+    F_CRASHED       = 0x01,
+    F_HALTED        = 0x02,
+    F_PUSHED_OUTPUT = 0x04,
+    F_REQUIRE_INPUT = 0x08
 };
 
 struct intcode_memory {
@@ -45,6 +53,8 @@ extern void set_vm_value(struct intcode_vm *, enum param, num_t, num_t);
 
 extern void push_input(struct intcode_vm *, num_t);
 extern num_t pop_output(struct intcode_vm *);
+
+extern void run_vm(struct intcode_vm *, int);
 
 #define INTCODE_H
 #endif
