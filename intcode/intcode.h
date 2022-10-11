@@ -2,7 +2,8 @@
 
 #include <stdint.h>
 #define num_t               int64_t
-#define INITIAL_MEMORY_SIZE 1024
+#define NUM_T_FORMAT        "%ld"
+#define CHUNK_SIZE          1024
 #define IO_BUFFER_LENGTH    1024
 
 /* Enums and structs */
@@ -22,8 +23,9 @@ enum stepcode {
 };
 
 struct intcode_memory {
-    num_t *data;
-    size_t size;
+    struct intcode_memory *next;
+    num_t data[CHUNK_SIZE];
+    num_t start;
 };
 
 struct intcode_io {
@@ -36,18 +38,19 @@ struct intcode_vm {
     struct intcode_memory mem;
     struct intcode_io input;    /* Input buffer */
     struct intcode_io output;   /* Output buffer */
-    size_t pc;                  /* Program counter */
+    num_t pc;                   /* Program counter */
     num_t relbase;              /* Base offset for relative memory access */
 };
 
 /* Function signatures */
 
-extern void initialise_vm(struct intcode_vm *);
-extern void initialise_vm_from_file(struct intcode_vm *, char *);
+extern struct intcode_vm *initialise_vm(void);
+extern struct intcode_vm *initialise_vm_from_file(char *);
+/*extern struct intcode_vm *copy_vm(struct intcode_vm *);*/
 extern void free_vm(struct intcode_vm *);
 
-extern num_t get_memory_direct(struct intcode_vm *, size_t);
-extern void set_memory_direct(struct intcode_vm *, size_t, num_t);
+extern num_t get_memory_direct(struct intcode_vm *, num_t);
+extern void set_memory_direct(struct intcode_vm *, num_t, num_t);
 extern num_t get_vm_value(struct intcode_vm *, enum param, num_t);
 extern void set_vm_value(struct intcode_vm *, enum param, num_t, num_t);
 

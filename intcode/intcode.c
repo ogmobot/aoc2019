@@ -1,4 +1,6 @@
 #include <malloc.h>
+#include <stdio.h>
+#include <string.h>
 #include "intcode.h"
 
 /*
@@ -12,39 +14,41 @@
 
 /* Initialising structs */
 
-static void stretch_mem_to(struct intcode_memory *mem, size_t min_size) {
-    /* Doubles the size of memory until it's at least as large as necessary */
-    while (mem->size < min_size) {
-        size_t tmp = mem->size;
-        mem->size *= 2;
-        mem->data = realloc(mem->data, sizeof(num_t) * mem->size);
-        /* Assumes realloc won't fail */
-        /* New memory must be zeroed */
-        while (tmp < mem->size)
-            (mem->data)[tmp++] = 0;
+static struct intcode_memory *find_chunk(struct intcode_vm *vm, num_t addr) {
+    /* Finds the chunk of memory in which the given address resides */
+    /* Allocates memory! */
+    num_t target_chunk_start = addr / CHUNK_SIZE;
+    struct intcode_memory *chunk = &(vm->mem);
+    while (chunk->start != target_chunk_start) {
+        if (chunk->next == (void *) 0) {
+            chunk->next = calloc(1, sizeof(struct intcode_memory));
+            chunk->next->next = (void *) 0;
+            chunk->next->start = target_chunk_start;
+        }
+        chunk = chunk->next;
     }
+    return chunk;
+}
+
+num_t get_memory_direct(struct intcode_vm *vm, num_t addr) {
+    struct intcode_memory *chunk = find_chunk(vm, addr);
+    return (chunk->data)[addr - (chunk->start * CHUNK_SIZE)];
+}
+
+void set_memory_direct(struct intcode_vm *vm, num_t addr, num_t val) {
+    struct intcode_memory *chunk = find_chunk(vm, addr);
+    (chunk->data)[addr - (chunk->start * CHUNK_SIZE)] = val;
     return;
 }
 
-num_t get_memory_direct(struct intcode_vm *vm, size_t addr) {
-    stretch_mem_to(&(vm->mem), addr + 1);
-    return (vm->mem.data)[addr];
-}
-
-void set_memory_direct(struct intcode_vm *vm, size_t addr, num_t val) {
-    stretch_mem_to(&(vm->mem), addr + 1);
-    (vm->mem.data)[addr] = val;
-    return;
-}
-
-void initialise_vm(struct intcode_vm *vm) {
-    /* This function mangles all pointer values! All pointers MUST be freed
-     * before calling this function if they were previously malloc'd! */
-    vm->mem.size = INITIAL_MEMORY_SIZE;
-    vm->mem.data = calloc(vm->mem.size, sizeof(num_t));
+struct intcode_vm *initialise_vm(void) {
+    /* Allocates memory! */
+    struct intcode_vm *vm = calloc(1, sizeof(struct intcode_vm));
+    vm->mem.next = (void *) 0;
+    vm->mem.start = 0;
     vm->input.reader = 0;
     vm->input.writer = 0;
-    for (size_t i = 0; i < IO_BUFFER_LENGTH; i++)
+    for (num_t i = 0; i < IO_BUFFER_LENGTH; i++)
         vm->input.buffer[i] = 0;
     vm->output.reader = 0;
     vm->output.writer = 0;
@@ -52,27 +56,53 @@ void initialise_vm(struct intcode_vm *vm) {
         vm->output.buffer[i] = 0;
     vm->pc = 0;
     vm->relbase = 0;
-    return;
+    return vm;
 }
 
-void free_vm(struct intcode_vm *vm) {
-    free(vm->mem.data);
-    free(vm);
-}
-
-void initialise_vm_from_file(struct intcode_vm *vm, char *filename) {
-    initialise_vm(vm);
+struct intcode_vm *initialise_vm_from_file(char *filename) {
+    /* Allocates memory! */
+    struct intcode_vm *vm = initialise_vm();
     size_t mem_index = 0;
     num_t num_reader;
     char char_reader;
     FILE *fp = fopen(filename, "r");
-    while (fscanf(fp, "%ld%c", &num_reader, &char_reader) != EOF) {
+    while (fscanf(fp, NUM_T_FORMAT "%c", &num_reader, &char_reader) != EOF) {
         set_memory_direct(vm, mem_index++, num_reader);
         if (char_reader != ',')
             break;
     }
     fclose(fp);
-    return;
+    return vm;
+}
+
+/* FIXME */
+/*
+struct intcode_vm *copy_vm(struct intcode_vm *orig) {
+*/
+    /* Allocates memory! */
+    /*
+    struct intcode_vm *vm = calloc(1, sizeof(struct intcode_vm));
+    memcpy(vm, orig, sizeof(struct intcode_vm));
+    */
+    /* vm->mem.data is reassigned without freeing, because the memory is still
+     * being pointed at by orig->mem.data
+     */
+    /*
+    vm->mem.size = orig->mem.size;
+    vm->mem.data = calloc(vm->mem.size, sizeof(num_t));
+    memcpy(vm->mem.data, orig->mem.data, vm->mem.size);
+    return vm;
+}
+*/
+
+void free_vm(struct intcode_vm *vm) {
+    struct intcode_memory *memptr = vm->mem.next;
+    while (memptr) {
+        struct intcode_memory *tmp = memptr->next;
+        free(memptr);
+        memptr = tmp;
+    }
+    free(vm);
 }
 
 /* Reading/writing memory addressed via opcode */
@@ -133,37 +163,6 @@ static enum param digit_at(num_t value, size_t place) {
     return (enum param) ((value / place) % 10);
 }
 
-static void increment_pc(struct intcode_vm *vm) {
-    num_t opcode = get_memory_direct(vm, vm->pc);
-    switch (opcode % 100) {
-    case 1: /* add */
-    case 2: /* multiply */
-        (vm->pc) += 4;
-        return;
-    case 3: /* input */
-    case 4: /* output */
-        (vm->pc) += 2;
-        return;
-    case 5: /* jump-if-true */
-    case 6: /* jump-if-false */
-        (vm->pc) += 3;
-        return;
-    case 7: /* less than */
-    case 8: /* equals */
-        (vm->pc) += 4;
-        return;
-    case 9: /* adjust offset */
-        (vm->pc) += 2;
-        return;
-    case 99: /* halt */
-        return;
-    default:
-        printf("Unrecognised opcode %ld\n", opcode);
-        (vm->pc) += 1;
-        return;
-    }
-}
-
 static enum stepcode step_vm(struct intcode_vm *vm) {
     num_t opcode = get_memory_direct(vm, vm->pc);
     num_t args[3];
@@ -174,9 +173,9 @@ static enum stepcode step_vm(struct intcode_vm *vm) {
         mode[i] = digit_at(opcode, place);
         place *= 10;
     }
-    increment_pc(vm);
     switch (opcode % 100) {
     case 1: /* add */
+        (vm->pc) += 4;
         set_vm_value(vm, mode[2], args[2],
             get_vm_value(vm, mode[0], args[0])
                 +
@@ -184,6 +183,7 @@ static enum stepcode step_vm(struct intcode_vm *vm) {
         );
         return F_OKAY;
     case 2: /* multiply */
+        (vm->pc) += 4;
         set_vm_value(vm, mode[2], args[2],
             get_vm_value(vm, mode[0], args[0])
                 *
@@ -192,25 +192,28 @@ static enum stepcode step_vm(struct intcode_vm *vm) {
         return F_OKAY;
     case 3: /* input */
         if (vm->input.reader == vm->input.writer) {
-            /* reset pc so this instruction can be repeated */
-            (vm->pc) -= 2;
             return F_REQUIRE_INPUT;
         } else {
+            (vm->pc) += 2;
             set_vm_value(vm, mode[0], args[0], read_io_buffer(&(vm->input)));
             return F_OKAY;
         }
     case 4: /* output */
+        (vm->pc) += 2;
         write_io_buffer(&(vm->output), get_vm_value(vm, mode[0], args[0]));
         return F_PUSHED_OUTPUT;
     case 5: /* jump-if-true */
+        (vm->pc) += 3;
         if (get_vm_value(vm, mode[0], args[0]))
             vm->pc = get_vm_value(vm, mode[1], args[1]);
         return F_OKAY;
     case 6: /* jump-if-false */
+        (vm->pc) += 3;
         if (!get_vm_value(vm, mode[0], args[0]))
             vm->pc = get_vm_value(vm, mode[1], args[1]);
         return F_OKAY;
     case 7: /* less-than */
+        (vm->pc) += 4;
         set_vm_value(vm, mode[2], args[2],
             get_vm_value(vm, mode[0], args[0])
                 <
@@ -218,6 +221,7 @@ static enum stepcode step_vm(struct intcode_vm *vm) {
         );
         return F_OKAY;
     case 8: /* equals */
+        (vm->pc) += 4;
         set_vm_value(vm, mode[2], args[2],
             get_vm_value(vm, mode[0], args[0])
                 ==
@@ -225,12 +229,17 @@ static enum stepcode step_vm(struct intcode_vm *vm) {
         );
         return F_OKAY;
     case 9: /* adjust offset */
+        (vm->pc) += 2;
         vm->relbase += get_vm_value(vm, mode[0], args[0]);
         return F_OKAY;
     case 99: /* halt */
         return F_HALTED;
+    default:
+        printf("Unhandled opcode " NUM_T_FORMAT
+               " at location " NUM_T_FORMAT "\n",
+            opcode, vm->pc);
+        return F_CRASHED;
     }
-    return F_CRASHED;
 }
 
 void run_vm(struct intcode_vm *vm, int stop_at_output) {
