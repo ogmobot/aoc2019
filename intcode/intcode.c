@@ -1,16 +1,6 @@
 #include <malloc.h>
 #include <stdio.h>
-#include <string.h>
 #include "intcode.h"
-
-/*
- * Build with
-    gcc -shared -fPIC -lc <this> -o intcode.so
- * Build and run others with
-    gcc <other> intcode.so
-    export LD_LIBRARY_PATH=`pwd`
-    ./a.out
-*/
 
 /* Initialising structs */
 
@@ -22,8 +12,14 @@ static struct intcode_memory *find_chunk(struct intcode_vm *vm, num_t addr) {
     while (chunk->start != target_chunk_start) {
         if (chunk->next == (void *) 0) {
             chunk->next = calloc(1, sizeof(struct intcode_memory));
-            chunk->next->next = (void *) 0;
-            chunk->next->start = target_chunk_start;
+            if (chunk->next) {
+                chunk->next->next = (void *) 0;
+                chunk->next->start = target_chunk_start;
+            } else {
+                vm->status = F_CRASHED;
+                vm->error_cause = E_OUT_OF_MEMORY;
+                return (void *) 0;
+            }
         }
         chunk = chunk->next;
     }
@@ -32,30 +28,22 @@ static struct intcode_memory *find_chunk(struct intcode_vm *vm, num_t addr) {
 
 num_t get_memory_direct(struct intcode_vm *vm, num_t addr) {
     struct intcode_memory *chunk = find_chunk(vm, addr);
-    return (chunk->data)[addr - (chunk->start * CHUNK_SIZE)];
+    if (chunk)
+        return (chunk->data)[addr - (chunk->start * CHUNK_SIZE)];
+    return 0;
 }
 
 void set_memory_direct(struct intcode_vm *vm, num_t addr, num_t val) {
     struct intcode_memory *chunk = find_chunk(vm, addr);
-    (chunk->data)[addr - (chunk->start * CHUNK_SIZE)] = val;
+    if (chunk)
+        (chunk->data)[addr - (chunk->start * CHUNK_SIZE)] = val;
     return;
 }
 
 struct intcode_vm *initialise_vm(void) {
     /* Allocates memory! */
     struct intcode_vm *vm = calloc(1, sizeof(struct intcode_vm));
-    vm->mem.next = (void *) 0;
-    vm->mem.start = 0;
-    vm->input.reader = 0;
-    vm->input.writer = 0;
-    for (num_t i = 0; i < IO_BUFFER_LENGTH; i++)
-        vm->input.buffer[i] = 0;
-    vm->output.reader = 0;
-    vm->output.writer = 0;
-    for (size_t i = 0; i < IO_BUFFER_LENGTH; i++)
-        vm->output.buffer[i] = 0;
-    vm->pc = 0;
-    vm->relbase = 0;
+    /* calloc ensures memory is zeroed */
     return vm;
 }
 
@@ -110,11 +98,11 @@ void free_vm(struct intcode_vm *vm) {
 num_t get_vm_value(struct intcode_vm *vm, enum param p, num_t arg) {
     switch (p) {
     case P_INDIRECT:
-        return get_memory_direct(vm, (size_t) arg);
+        return get_memory_direct(vm, arg);
     case P_IMMEDIATE:
         return arg;
     case P_OFFSET:
-        return get_memory_direct(vm, (size_t) (arg + vm->relbase));
+        return get_memory_direct(vm, arg + vm->relbase);
     }
     return 0;
 }
@@ -122,13 +110,15 @@ num_t get_vm_value(struct intcode_vm *vm, enum param p, num_t arg) {
 void set_vm_value(struct intcode_vm *vm, enum param p, num_t arg, num_t val) {
     switch (p) {
     case P_INDIRECT:
-        set_memory_direct(vm, (size_t) arg, val);
+        set_memory_direct(vm, arg, val);
         return;
     case P_IMMEDIATE:
-        printf("Can't use immediate mode for instruction at %lu\n", vm->pc);
+        /* Can't use immediate mode for a destination */
+        vm->status = F_CRASHED;
+        vm->error_cause = E_SET_IMMEDIATE;
         return;
     case P_OFFSET:
-        set_memory_direct(vm, (size_t) (arg + vm->relbase), val);
+        set_memory_direct(vm, arg + vm->relbase, val);
         return;
     }
     return;
@@ -163,7 +153,10 @@ static enum param digit_at(num_t value, size_t place) {
     return (enum param) ((value / place) % 10);
 }
 
-static enum stepcode step_vm(struct intcode_vm *vm) {
+static void step_vm(struct intcode_vm *vm) {
+    if (vm->status & (F_CRASHED | F_HALTED))
+        return;
+    vm->status = F_OKAY;
     num_t opcode = get_memory_direct(vm, vm->pc);
     num_t args[3];
     enum param mode[3];
@@ -181,7 +174,7 @@ static enum stepcode step_vm(struct intcode_vm *vm) {
                 +
             get_vm_value(vm, mode[1], args[1])
         );
-        return F_OKAY;
+        return;
     case 2: /* multiply */
         (vm->pc) += 4;
         set_vm_value(vm, mode[2], args[2],
@@ -189,29 +182,30 @@ static enum stepcode step_vm(struct intcode_vm *vm) {
                 *
             get_vm_value(vm, mode[1], args[1])
         );
-        return F_OKAY;
+        return;
     case 3: /* input */
         if (vm->input.reader == vm->input.writer) {
-            return F_REQUIRE_INPUT;
+            vm->status = F_REQUIRE_INPUT;
         } else {
             (vm->pc) += 2;
             set_vm_value(vm, mode[0], args[0], read_io_buffer(&(vm->input)));
-            return F_OKAY;
         }
+        return;
     case 4: /* output */
         (vm->pc) += 2;
         write_io_buffer(&(vm->output), get_vm_value(vm, mode[0], args[0]));
-        return F_PUSHED_OUTPUT;
+        vm->status = F_PUSHED_OUTPUT;
+        return;
     case 5: /* jump-if-true */
         (vm->pc) += 3;
         if (get_vm_value(vm, mode[0], args[0]))
             vm->pc = get_vm_value(vm, mode[1], args[1]);
-        return F_OKAY;
+        return;
     case 6: /* jump-if-false */
         (vm->pc) += 3;
         if (!get_vm_value(vm, mode[0], args[0]))
             vm->pc = get_vm_value(vm, mode[1], args[1]);
-        return F_OKAY;
+        return;
     case 7: /* less-than */
         (vm->pc) += 4;
         set_vm_value(vm, mode[2], args[2],
@@ -219,7 +213,7 @@ static enum stepcode step_vm(struct intcode_vm *vm) {
                 <
             get_vm_value(vm, mode[1], args[1])
         );
-        return F_OKAY;
+        return;
     case 8: /* equals */
         (vm->pc) += 4;
         set_vm_value(vm, mode[2], args[2],
@@ -227,30 +221,27 @@ static enum stepcode step_vm(struct intcode_vm *vm) {
                 ==
             get_vm_value(vm, mode[1], args[1])
         );
-        return F_OKAY;
+        return;
     case 9: /* adjust offset */
         (vm->pc) += 2;
         vm->relbase += get_vm_value(vm, mode[0], args[0]);
-        return F_OKAY;
+        return;
     case 99: /* halt */
-        return F_HALTED;
+        vm->status = F_HALTED;
+        return;
     default:
-        printf("Unhandled opcode " NUM_T_FORMAT
-               " at location " NUM_T_FORMAT "\n",
-            opcode, vm->pc);
-        return F_CRASHED;
+        vm->status = F_CRASHED;
+        vm->error_cause = E_UNKNOWN_OPCODE;
+        return;
     }
 }
 
 void run_vm(struct intcode_vm *vm, int stop_at_output) {
-    int stopflags = ((int) F_HALTED)
-                  | ((int) F_CRASHED)
-                  | ((int) F_REQUIRE_INPUT);
+    int stopflags = F_HALTED | F_CRASHED | F_REQUIRE_INPUT;
     if (stop_at_output)
         stopflags |= F_PUSHED_OUTPUT;
-    int res = (int) F_OKAY;
     do {
-        res = (int) step_vm(vm);
-    } while (!(res & stopflags));
+        step_vm(vm);
+    } while (!(vm->status & stopflags));
     return;
 }
