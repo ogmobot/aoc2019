@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #define num_t               int64_t
 #define NUM_T_FORMAT        "%" PRId64
+#define NUM_T_SCAN          "%" SCNd64
 #define CHUNK_SIZE          1024
 #define IO_BUFFER_LENGTH    1024
 
@@ -29,6 +30,11 @@ enum crashcode {
     E_UNKNOWN_OPCODE,
     E_OUT_OF_MEMORY,
     E_EXPECTED_INPUT
+};
+
+enum interact_mode {
+    I_NUMERIC,
+    I_ASCII
 };
 
 struct intcode_memory {
@@ -69,7 +75,7 @@ extern void push_input(struct intcode_vm *, num_t);
 extern num_t pop_output(struct intcode_vm *);
 
 extern void run_vm(struct intcode_vm *, int);
-extern void run_vm_ascii(struct intcode_vm *);
+extern void run_vm_interactive(struct intcode_vm *, enum interact_mode);
 
 #define INTCODE_H
 #endif
