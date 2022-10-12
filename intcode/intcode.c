@@ -47,19 +47,29 @@ struct intcode_vm *initialise_vm(void) {
     return vm;
 }
 
-struct intcode_vm *initialise_vm_from_file(char *filename) {
-    /* Allocates memory! */
-    struct intcode_vm *vm = initialise_vm();
-    size_t mem_index = 0;
+size_t load_file(char *filename, num_t *buffer) {
+    num_t *writer = buffer;
     num_t num_reader;
     char char_reader;
     FILE *fp = fopen(filename, "r");
+    if (!fp) {
+        printf("Couldn't open file \"%s\"\n", filename);
+        return 0;
+    }
     while (fscanf(fp, NUM_T_FORMAT "%c", &num_reader, &char_reader) != EOF) {
-        set_memory_direct(vm, mem_index++, num_reader);
+        *writer++ = num_reader;
         if (char_reader != ',')
             break;
     }
     fclose(fp);
+    return writer - buffer;
+}
+
+struct intcode_vm *vm_from_buffer(num_t *buffer, size_t buffer_len) {
+    /* Allocates memory! */
+    struct intcode_vm *vm = initialise_vm();
+    for (size_t i = 0; i < buffer_len; i++)
+        set_memory_direct(vm, i, *(buffer + i));
     return vm;
 }
 
@@ -245,3 +255,4 @@ void run_vm(struct intcode_vm *vm, int stop_at_output) {
     } while (!(vm->status & stopflags));
     return;
 }
+

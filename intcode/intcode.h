@@ -5,7 +5,6 @@
 #define NUM_T_FORMAT        "%" PRId64
 #define CHUNK_SIZE          1024
 #define IO_BUFFER_LENGTH    1024
-#define FILE_BUFFER_LENGTH  8192
 
 /* Enums and structs */
 
@@ -56,7 +55,8 @@ struct intcode_vm {
 /* Function signatures */
 
 extern struct intcode_vm *initialise_vm(void);
-extern struct intcode_vm *initialise_vm_from_file(char *);
+extern size_t load_file(char *, num_t *);
+extern struct intcode_vm *vm_from_buffer(num_t *, size_t);
 /*extern struct intcode_vm *copy_vm(struct intcode_vm *);*/
 extern void free_vm(struct intcode_vm *);
 
@@ -69,6 +69,7 @@ extern void push_input(struct intcode_vm *, num_t);
 extern num_t pop_output(struct intcode_vm *);
 
 extern void run_vm(struct intcode_vm *, int);
+extern void run_vm_ascii(struct intcode_vm *, int);
 
 #define INTCODE_H
 #endif
