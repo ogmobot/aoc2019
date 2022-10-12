@@ -149,6 +149,7 @@ static num_t read_io_buffer(struct intcode_io *io) {
 
 void push_input(struct intcode_vm *vm, num_t val) {
     write_io_buffer(&(vm->input), val);
+    vm->status = F_OKAY;
     return;
 }
 
@@ -256,3 +257,39 @@ void run_vm(struct intcode_vm *vm, int stop_at_output) {
     return;
 }
 
+void run_vm_ascii(struct intcode_vm *vm) {
+    size_t print_count;
+    int stopflags = F_HALTED | F_CRASHED | F_REQUIRE_INPUT;
+    while (!(vm->status & (F_HALTED | F_CRASHED))) {
+        print_count = 0;
+        while (print_count < IO_BUFFER_LENGTH && (!(vm->status & stopflags))) {
+            run_vm(vm, 1);
+            if (vm->status & F_PUSHED_OUTPUT)
+                print_count++;
+        }
+        for (size_t i = 0; i < print_count; i++) {
+            num_t tmp = pop_output(vm);
+            if (0 <= tmp && tmp <= UINT8_MAX) {
+                putchar((char) tmp);
+            } else {
+                printf(NUM_T_FORMAT "\n", tmp);
+            }
+        }
+        if (vm->status & F_REQUIRE_INPUT) {
+            int received_input = 0;
+            int gotch = getchar();
+            while (gotch != -1) {
+                push_input(vm, (num_t) gotch);
+                if ((char) gotch == '\n')
+                    break;
+                gotch = getchar();
+                received_input = 1;
+            }
+            if (!received_input) {
+                vm->status = F_CRASHED;
+                vm->error_cause = E_EXPECTED_INPUT;
+            }
+        }
+    }
+    return;
+}

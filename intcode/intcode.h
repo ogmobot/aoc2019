@@ -27,7 +27,8 @@ enum crashcode {
     E_NEGATIVE_ADDRESS,
     E_SET_IMMEDIATE,
     E_UNKNOWN_OPCODE,
-    E_OUT_OF_MEMORY
+    E_OUT_OF_MEMORY,
+    E_EXPECTED_INPUT
 };
 
 struct intcode_memory {
@@ -57,7 +58,6 @@ struct intcode_vm {
 extern struct intcode_vm *initialise_vm(void);
 extern size_t load_file(char *, num_t *);
 extern struct intcode_vm *vm_from_buffer(num_t *, size_t);
-/*extern struct intcode_vm *copy_vm(struct intcode_vm *);*/
 extern void free_vm(struct intcode_vm *);
 
 extern num_t get_memory_direct(struct intcode_vm *, num_t);
@@ -69,7 +69,7 @@ extern void push_input(struct intcode_vm *, num_t);
 extern num_t pop_output(struct intcode_vm *);
 
 extern void run_vm(struct intcode_vm *, int);
-extern void run_vm_ascii(struct intcode_vm *, int);
+extern void run_vm_ascii(struct intcode_vm *);
 
 #define INTCODE_H
 #endif
