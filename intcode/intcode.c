@@ -158,7 +158,7 @@ static void step_vm(struct intcode_vm *vm) {
         place *= 10;
     }
     switch (opcode % 100) {
-    case 1: /* add */
+    case OP_ADD:
         (vm->pc) += 4;
         set_vm_value(vm, mode[2], args[2],
             get_vm_value(vm, mode[0], args[0])
@@ -166,7 +166,7 @@ static void step_vm(struct intcode_vm *vm) {
             get_vm_value(vm, mode[1], args[1])
         );
         return;
-    case 2: /* multiply */
+    case OP_MULTIPLY:
         (vm->pc) += 4;
         set_vm_value(vm, mode[2], args[2],
             get_vm_value(vm, mode[0], args[0])
@@ -174,7 +174,7 @@ static void step_vm(struct intcode_vm *vm) {
             get_vm_value(vm, mode[1], args[1])
         );
         return;
-    case 3: /* input */
+    case OP_INPUT:
         if (vm->input.reader == vm->input.writer) {
             vm->status = F_REQUIRE_INPUT;
         } else {
@@ -182,22 +182,22 @@ static void step_vm(struct intcode_vm *vm) {
             set_vm_value(vm, mode[0], args[0], read_io_buffer(&(vm->input)));
         }
         return;
-    case 4: /* output */
+    case OP_OUTPUT:
         (vm->pc) += 2;
         write_io_buffer(&(vm->output), get_vm_value(vm, mode[0], args[0]));
         vm->status = F_PUSHED_OUTPUT;
         return;
-    case 5: /* jump-if-true */
+    case OP_JUMP_IF_TRUE:
         (vm->pc) += 3;
         if (get_vm_value(vm, mode[0], args[0]))
             vm->pc = get_vm_value(vm, mode[1], args[1]);
         return;
-    case 6: /* jump-if-false */
+    case OP_JUMP_IF_FALSE:
         (vm->pc) += 3;
         if (!get_vm_value(vm, mode[0], args[0]))
             vm->pc = get_vm_value(vm, mode[1], args[1]);
         return;
-    case 7: /* less-than */
+    case OP_LESS_THAN:
         (vm->pc) += 4;
         set_vm_value(vm, mode[2], args[2],
             get_vm_value(vm, mode[0], args[0])
@@ -205,7 +205,7 @@ static void step_vm(struct intcode_vm *vm) {
             get_vm_value(vm, mode[1], args[1])
         );
         return;
-    case 8: /* equals */
+    case OP_EQUALS:
         (vm->pc) += 4;
         set_vm_value(vm, mode[2], args[2],
             get_vm_value(vm, mode[0], args[0])
@@ -213,11 +213,11 @@ static void step_vm(struct intcode_vm *vm) {
             get_vm_value(vm, mode[1], args[1])
         );
         return;
-    case 9: /* adjust offset */
+    case OP_ADJUST_OFFSET:
         (vm->pc) += 2;
         vm->relbase += get_vm_value(vm, mode[0], args[0]);
         return;
-    case 99: /* halt */
+    case OP_HALT:
         vm->status = F_HALTED;
         return;
     default:

@@ -37,6 +37,19 @@ enum interact_mode {
     I_ASCII
 };
 
+enum opcode {
+    OP_ADD           =  1,
+    OP_MULTIPLY      =  2,
+    OP_INPUT         =  3,
+    OP_OUTPUT        =  4,
+    OP_JUMP_IF_TRUE  =  5,
+    OP_JUMP_IF_FALSE =  6,
+    OP_LESS_THAN     =  7,
+    OP_EQUALS        =  8,
+    OP_ADJUST_OFFSET =  9,
+    OP_HALT          = 99
+};
+
 struct intcode_memory {
     struct intcode_memory *next;
     num_t data[CHUNK_SIZE];
