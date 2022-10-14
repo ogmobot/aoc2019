@@ -56,7 +56,7 @@ size_t load_file(char *filename, num_t *buffer) {
         printf("Couldn't open file \"%s\"\n", filename);
         return 0;
     }
-    while (fscanf(fp, NUM_T_FORMAT "%c", &num_reader, &char_reader) != EOF) {
+    while (fscanf(fp, NUM_T_SCAN "%c", &num_reader, &char_reader) != EOF) {
         *writer++ = num_reader;
         if (char_reader != ',')
             break;
@@ -72,26 +72,6 @@ struct intcode_vm *vm_from_buffer(num_t *buffer, size_t buffer_len) {
         set_memory_direct(vm, i, *(buffer + i));
     return vm;
 }
-
-/* FIXME */
-/*
-struct intcode_vm *copy_vm(struct intcode_vm *orig) {
-*/
-    /* Allocates memory! */
-    /*
-    struct intcode_vm *vm = calloc(1, sizeof(struct intcode_vm));
-    memcpy(vm, orig, sizeof(struct intcode_vm));
-    */
-    /* vm->mem.data is reassigned without freeing, because the memory is still
-     * being pointed at by orig->mem.data
-     */
-    /*
-    vm->mem.size = orig->mem.size;
-    vm->mem.data = calloc(vm->mem.size, sizeof(num_t));
-    memcpy(vm->mem.data, orig->mem.data, vm->mem.size);
-    return vm;
-}
-*/
 
 void free_vm(struct intcode_vm *vm) {
     struct intcode_memory *memptr = vm->mem.next;
@@ -287,7 +267,7 @@ void run_vm_interactive(struct intcode_vm *vm, enum interact_mode mode) {
                 }
             } else {
                 int gotch = getchar();
-                while (gotch != -1) {
+                while (gotch != EOF) {
                     push_input(vm, (num_t) gotch);
                     if ((char) gotch == '\n')
                         break;
