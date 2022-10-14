@@ -268,11 +268,11 @@ void run_vm_interactive(struct intcode_vm *vm, enum interact_mode mode) {
             } else {
                 int gotch = getchar();
                 while (gotch != EOF) {
+                    received_input = 1;
                     push_input(vm, (num_t) gotch);
                     if ((char) gotch == '\n')
                         break;
                     gotch = getchar();
-                    received_input = 1;
                 }
             }
             if (!received_input) {
