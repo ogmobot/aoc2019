@@ -166,9 +166,7 @@ def solveMaze(
         immutable.Set[Char]
     ), Int]
     val keyLocations = mazes.map(_.keyLocations)
-                            .foldLeft(
-                                mutable.Map.empty[Char, (Int, Int)]
-                            )((a, b) => a ++ b)
+                            .reduce((a, b) => a ++ b)
     toSearch.enqueue(List('@'))
     while (toSearch.length > 0) {
         val path = toSearch.dequeue()
@@ -213,9 +211,7 @@ def solveSimul(mazes: Array[Maze]): Int = {
     val reqMatrices = mazes.map(getReqMatrix)
     solveMaze(
         mazes,
-        reqMatrices.foldLeft(
-            mutable.Map.empty[(Char, Char), Requirement]
-        )((a, b) => a ++ b)
+        reqMatrices.reduce((a, b) => a ++ b)
     )
 }
 

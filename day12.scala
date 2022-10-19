@@ -71,8 +71,8 @@ def main(): Unit = {
     }
     //println(s"${cycles(0)} ${cycles(1)} ${cycles(2)}")
     println(
-        cycles.foldLeft(BigInt(1))((a, b) =>
-            lowestCommonMultiple(a, BigInt(b))))
+        cycles.map(BigInt(_)).reduce((a, b) =>
+            lowestCommonMultiple(a, b)))
 }
 
 main()
