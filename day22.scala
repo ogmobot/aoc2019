@@ -4,12 +4,11 @@ import scala.util.matching.Regex
 import scala.math.BigInt
 
 // This puzzle is all about linear transforms.
+
+type BigTriple = Tuple3[BigInt, BigInt, BigInt]
 // Let the tuple (a, b, n) represent the transform f(x) = ax + b (mod n)
 
-def foldLinear(
-    base: (BigInt, BigInt, BigInt),
-    line: String
-): (BigInt, BigInt, BigInt) = {
+def foldLinear(base: BigTriple, line: String): BigTriple = {
     val (a, b, n) = base
     val reverseMatcher:  Regex = "deal into new stack".r
     val multiplyMatcher: Regex = "deal with increment ([0-9]+)".r
@@ -22,13 +21,10 @@ def foldLinear(
     }
 }
 
-def applyLinearMod(x: BigInt, linearMod: (BigInt, BigInt, BigInt)): BigInt =
+def applyLinearMod(x: BigInt, linearMod: BigTriple): BigInt =
     (((x * linearMod._1) + linearMod._2) % linearMod._3)
 
-def iterateNTimes(
-    linearMod: (BigInt, BigInt, BigInt),
-    n: BigInt
-): (BigInt, BigInt, BigInt) = {
+def iterateNTimes(linearMod: BigTriple, n: BigInt): BigTriple = {
     // Computes f^n(x) = f(f(f(...(x)...)))
     // What's the formula for a geometric series sum again..?
     val (a, b, mod) = linearMod
@@ -38,8 +34,7 @@ def iterateNTimes(
 
 def modInverse(x: BigInt, mod: BigInt): BigInt = x.modPow(mod - 2, mod)
 
-def idLinearMod(mod: BigInt): (BigInt, BigInt, BigInt) =
-    (BigInt(1), BigInt(0), mod)
+def idLinearMod(mod: BigInt): BigTriple = (BigInt(1), BigInt(0), mod)
 // Returns the identity linear transform (i.e. y = 1x + 0) for a given modulus
 
 def main(): Unit = {
