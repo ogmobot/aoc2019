@@ -129,7 +129,7 @@ static num_t read_io_buffer(struct intcode_io *io) {
 
 void push_input(struct intcode_vm *vm, num_t val) {
     write_io_buffer(&(vm->input), val);
-    vm->status = F_OKAY;
+    vm->status &= ~F_REQUIRE_INPUT;
     return;
 }
 
