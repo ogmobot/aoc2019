@@ -8,8 +8,8 @@ import scala.math.BigInt
 type BigTriple = Tuple3[BigInt, BigInt, BigInt]
 // Let the tuple (a, b, n) represent the transform f(x) = ax + b (mod n)
 
-def foldLinear(base: BigTriple, line: String): BigTriple = {
-    val (a, b, n) = base
+def foldLinear(linearMod: BigTriple, line: String): BigTriple = {
+    val (a, b, n) = linearMod
     val reverseMatcher:  Regex = "deal into new stack".r
     val multiplyMatcher: Regex = "deal with increment ([0-9]+)".r
     val offsetMatcher:   Regex = "cut (-?[0-9]+)".r
@@ -21,8 +21,10 @@ def foldLinear(base: BigTriple, line: String): BigTriple = {
     }
 }
 
-def applyLinearMod(x: BigInt, linearMod: BigTriple): BigInt =
-    (((x * linearMod._1) + linearMod._2) % linearMod._3)
+def applyLinearMod(x: BigInt, linearMod: BigTriple): BigInt = {
+    val (a, b, n) = linearMod
+    ((a * x) + b) % n
+}
 
 def iterateNTimes(linearMod: BigTriple, n: BigInt): BigTriple = {
     // Computes f^n(x) = f(f(f(...(x)...)))
