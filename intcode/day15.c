@@ -19,9 +19,9 @@ enum response {
 };
 
 struct grid_node {
-    struct grid_node *neighbours[5]; /* index 0 unused */
-    struct grid_node *path; /* path to last caller of populate_distances */
-    size_t distance; /* distance to last caller of populate_distances */
+    struct grid_node *neighbours[5];
+        /* neighbours[0] is path to last caller of find_path */
+    size_t distance; /* distance to last caller of find_path */
     int x;
     int y;
 };
@@ -44,7 +44,7 @@ struct array_list {
     size_t length;
 };
 
-/* Exploration queue functions */
+/* Exploration queue/stack functions */
 
 void push_queue(struct explore_node **q, struct grid_node *x) {
     struct explore_node *new_node = calloc(1, sizeof(struct explore_node));
@@ -108,18 +108,18 @@ int list_contains(struct array_list *l, int x, int y) {
 
 void write_path(struct grid_node *node, enum direction *buffer) {
     buffer[node->distance] = END_PATH;
-    while (node->path) {
+    while (node->neighbours[0]) {
         /* pointers not permitted as switch/case values */
         buffer[node->distance - 1] =
-            (node->path == node->neighbours[D_NORTH] ? D_SOUTH :
-            (node->path == node->neighbours[D_SOUTH] ? D_NORTH :
-            (node->path == node->neighbours[D_WEST]  ? D_EAST  :
-            (node->path == node->neighbours[D_EAST]  ? D_WEST  :
+            (node->neighbours[0] == node->neighbours[D_NORTH] ? D_SOUTH :
+            (node->neighbours[0] == node->neighbours[D_SOUTH] ? D_NORTH :
+            (node->neighbours[0] == node->neighbours[D_WEST]  ? D_EAST  :
+            (node->neighbours[0] == node->neighbours[D_EAST]  ? D_WEST  :
             /* Damn! The rest of the path doesn't connect! */
             END_PATH))));
         if (buffer[node->distance - 1] == END_PATH)
             printf("Oh no! Path disconnected!\n");
-        node = node->path;
+        node = node->neighbours[0];
     }
     return;
 }
@@ -135,7 +135,7 @@ size_t find_path(
     seen.length = 0;
     size_t largest_distance = 0;
 
-    start->path = (void *) 0;
+    start->neighbours[0] = (void *) 0;
     start->distance = 0;
     push_queue(&xq, start);
 
@@ -156,7 +156,7 @@ size_t find_path(
         for (enum direction i = 1; i <= 4; i++) {
             struct grid_node *n = current->neighbours[i];
             if (n && !(list_contains(&seen, n->x, n->y))) {
-                n->path = current;
+                n->neighbours[0] = current;
                 n->distance = current->distance + 1;
                 push_queue(&xq, n);
             }
@@ -199,24 +199,18 @@ void explore_maze(struct intcode_vm *vm, struct maze *m) {
         struct grid_node *current = pop_stack(&xs);
         if (list_contains(&seen, current->x, current->y))
             continue;
-        /*printf("== exploring x=%d, y=%d ==\n", current->x, current->y);*/
         list_append(&seen, current->x, current->y);
         find_path(robot, current->x, current->y, path_buffer);
-        /*printf("path buffer %d %d ...\n", path_buffer[0], path_buffer[1]);*/
         walk_path(vm, path_buffer);
         robot = current;
 
         /* Test moving to each unknown neighbour */
         for (enum direction dir = 1; dir <= 4; dir++) {
-            if (robot->neighbours[dir]) {
-                /*printf("skipping dir=%d\n", dir);*/
+            if (robot->neighbours[dir])
                 continue;
-            }
-            /*printf("attempting to move in dir=%d\n", dir);*/
             push_input(vm, dir);
             run_vm(vm, 0);
             enum response res = pop_output(vm);
-            /*printf("response=%d\n", res);*/
             /* If res == R_WALL, robot did not move */
             if (res != R_WALL) {
                 struct grid_node *node = calloc(1, sizeof(struct grid_node));
@@ -253,7 +247,6 @@ void explore_maze(struct intcode_vm *vm, struct maze *m) {
                 }
                 if (res == R_OXYGEN)
                     m->oxygen = node;
-                /*printf("pushing x=%d, y=%d to stack\n", node->x, node->y);*/
                 push_stack(&xs, node);
                 run_vm(vm, 0); /* move back */
                 pop_output(vm); /* discard feedback */
