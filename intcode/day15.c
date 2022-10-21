@@ -3,6 +3,7 @@
 #include "intcode.h"
 
 #define HT_LENGTH 1024
+#define MAX_PATH_LENGTH 2048
 
 enum direction {
     END_PATH = 0,
@@ -13,13 +14,16 @@ enum direction {
 };
 
 struct coord {
+    struct coord *next; /* for keeping track of seen coords */
     int x, y;
 };
 
 struct ht_node {
+    struct ht_node *next;
+    struct ht_node *path; /* path to caller of find_path */
     struct coord key;
     char symbol;
-    struct ht_node *next;
+    size_t distance; /* distance to last caller of populate_distances */
 };
 
 struct maze {
@@ -29,9 +33,8 @@ struct maze {
 };
 
 struct explore_node {
-    struct coord position;
+    struct ht_node *grid_location;
     struct explore_node *next;
-    size_t distance;
 };
 
 /* Hash table functions */
@@ -60,10 +63,9 @@ struct ht_node *ht_lookup(struct ht_node **grid, struct coord key) {
 
 /* Exploration queue functions */
 
-void push_queue(struct explore_node **q, struct coord p, size_t d) {
+void push_queue(struct explore_node **q, struct ht_node *gl) {
     struct explore_node *new_node = calloc(1, sizeof(struct coord));
-    new_node->position = p;
-    new_node->distance = d;
+    new_node->grid_location = gl;
     if (!(*q)) {
         new_node->next = new_node;
         *q = new_node;
@@ -75,25 +77,108 @@ void push_queue(struct explore_node **q, struct coord p, size_t d) {
     return;
 }
 
-struct explore_node *pop_queue(struct explore_node **q) {
+struct ht_node *pop_queue(struct explore_node **q) {
     struct explore_node *head = (*q)->next;
     if (head->next == head) {
         *q = (void *) 0;
     } else {
         (*q)->next = head->next;
     }
-    /* Caller must free this */
-    return head;
+    struct ht_node *tmp = head->grid_location;
+    free(head);
+    return tmp;
+}
+
+void push_stack(struct coord **cs, struct coord c) {
+    struct coord *new_node = calloc(1, sizeof(struct coord));
+    new_node->next = *cs;
+    *cs = new_node;
+    return;
+}
+
+void free_stack(struct coord *cs) {
+    struct coord *tmp = cs;
+    while (cs) {
+        free(tmp);
+        tmp = cs;
+        cs = cs->next;
+    }
+    return;
+}
+
+int stack_contains(struct coord *cs, struct coord c) {
+    while (cs) {
+        if (cs->x == c.x && cs->y == c.y)
+            return 1;
+        cs = cs->next;
+    }
+    return 0;
 }
 
 /* Maze solving functions */
 
 /* Robot manipulation functions */
 
+void find_path(
+    struct maze *m,
+    struct coord start,
+    struct coord end,
+    enum direction *buffer
+) {
+    struct explore_node *xq = (void *) 0;
+    struct ht_node *target = ht_lookup(m->grid, start);
+    target->path = (void *) 0;
+    target->distance = 0;
+    push_queue(&xq, target);
+    target = (void *) 0;
+    struct coord *seen;
+    while (xq) {
+        struct ht_node *current = pop_queue(&xq);
+        if (stack_contains(seen, (struct coord) { .x = current->key.x,
+                                                  .y = current->key.y}))
+            continue;
+        if (current->key.x == end.x && current->key.y == end.y) {
+            /* Found path! */
+            while (xq)
+                pop_queue(&xq);
+            free_stack(seen);
+            target = current;
+            break;
+        }
+        push_stack(&seen, current->key);
+        struct coord neighbours[4] = {
+            (struct coord) {.x = current->key.x + 1, .y = current->key.y},
+            (struct coord) {.x = current->key.x - 1, .y = current->key.y},
+            (struct coord) {.x = current->key.x, .y = current->key.y + 1},
+            (struct coord) {.x = current->key.x, .y = current->key.y - 1}
+        };
+        for (size_t i = 0; i < 4; i++) {
+            struct ht_node *tmp = ht_lookup(m->grid, neighbours[i]);
+            if (!tmp)
+                continue;
+            if (stack_contains(seen, neighbours[i]))
+                continue;
+            tmp->path = current;
+            tmp->distance = current->distance + 1;
+            push_queue(&xq, tmp);
+        }
+    }
+    if (!target) {
+        *buffer = END_PATH;
+    } else {
+        buffer[target->distance] = END_PATH;
+        while (target->distance > 0) {
+            enum direction to_write;
+            target = target->path;
+        }
+    }
+    return;
+}
+
 void walk_path(struct intcode_vm *vm, enum direction *path) {
     while (*path != END_PATH) {
         push_input(vm, (num_t) *path);
-        vm_run(vm, 0);
+        run_vm(vm, 0);
         num_t tmp = pop_output(vm);
         if (!tmp) { /* Damn! We hit a wall! */
             printf("Oh no! Something went horribly wrong!\n");
