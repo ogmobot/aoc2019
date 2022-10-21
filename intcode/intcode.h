@@ -34,7 +34,8 @@ enum crashcode {
 
 enum interact_mode {
     I_NUMERIC,
-    I_ASCII
+    I_ASCII,
+    I_ASCII_SILENT,
 };
 
 enum opcode {

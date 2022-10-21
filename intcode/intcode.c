@@ -249,10 +249,11 @@ void run_vm_interactive(struct intcode_vm *vm, enum interact_mode mode) {
         }
         for (size_t i = 0; i < print_count; i++) {
             num_t tmp = pop_output(vm);
-            if (mode == I_ASCII && (0 <= tmp && tmp <= UINT8_MAX)) {
-                putchar((char) tmp);
-            } else {
+            if (mode == I_NUMERIC || tmp < 0 || tmp > UINT8_MAX) {
                 printf(NUM_T_FORMAT "\n", tmp);
+            } else {
+                if (mode == I_ASCII)
+                    putchar((char) tmp);
             }
         }
         if (vm->status & F_REQUIRE_INPUT) {

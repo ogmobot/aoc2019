@@ -49,7 +49,7 @@ int main(void) {
     /* Part 2 */
     vm = vm_from_buffer(file_buffer, n);
     set_memory_direct(vm, 0, 2);
-    run_vm_interactive(vm, I_ASCII);
+    run_vm_interactive(vm, I_ASCII_SILENT);
     free_vm(vm);
     return 0;
 }
