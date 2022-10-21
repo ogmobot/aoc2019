@@ -1,3 +1,4 @@
+#include <malloc.h>
 #include <stdio.h>
 #include "intcode.h"
 
@@ -5,14 +6,21 @@
 #define NUM_PERMS 120
 
 #define swap(a, b) do { \
-(a) = (a) ^ (b);\
-(b) = (b) ^ (a);\
-(a) = (a) ^ (b);\
+(a) = (a) ^ (b); \
+(b) = (b) ^ (a); \
+(a) = (a) ^ (b); \
 } while (0);
 
 struct permutation {
     num_t a[VM_COUNT];
 };
+
+int factorial(int n) {
+    int res = 1;
+    while (n > 0)
+        res *= n--;
+    return res;
+}
 
 void write_permutation(struct permutation p, struct permutation *buffer) {
     for (size_t i = 0; i < VM_COUNT; i++)
@@ -53,7 +61,8 @@ int main(void) {
     num_t file_buffer[8192];
     size_t n;
 
-    struct permutation perms[NUM_PERMS];
+    const int num_perms = factorial(VM_COUNT);
+    struct permutation *perms = calloc(num_perms, sizeof(struct permutation));
 
     n = load_file("input07.txt", file_buffer);
     /* Part 1 */
@@ -75,9 +84,9 @@ int main(void) {
                 push_input(vms[j+1], pop_output(vms[j]));
             }
         }
+        for (size_t j = 0; j < VM_COUNT; j++)
+            free_vm(vms[j]);
     }
-    for (size_t i = 0; i < VM_COUNT; i++)
-        free_vm(vms[i]);
     printf(NUM_T_FORMAT "\n", highest_output);
     /* Part 2 */
     heaps_algorithm((struct permutation) {.a={5, 6, 7, 8, 9}}, perms);
@@ -102,9 +111,10 @@ int main(void) {
         }
         if (last_output > highest_output)
             highest_output = last_output;
+        for (size_t j = 0; j < VM_COUNT; j++)
+            free_vm(vms[j]);
     }
-    for (size_t i = 0; i < VM_COUNT; i++)
-        free_vm(vms[i]);
     printf(NUM_T_FORMAT "\n", highest_output);
+    free(perms);
     return 0;
 }
