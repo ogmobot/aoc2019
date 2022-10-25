@@ -26,7 +26,7 @@ def applyGravityToAll(moons: Array[Moon]): Unit =
     moons.map(m => moons.map(_.applyGravity(m)))
 
 def extractDimensions(moons: Array[Moon]): Array[Array[Int]] =
-    moons.map(m => Array(m.pos, m.vel)).reduce((a, b) => a ++ b).transpose
+    moons.map(m => Array(m.pos, m.vel)).reduce(_ ++ _).transpose
 
 // IO functions
 
@@ -70,9 +70,7 @@ def main(): Unit = {
                 cycles(dim) = timer
     }
     //println(s"${cycles(0)} ${cycles(1)} ${cycles(2)}")
-    println(
-        cycles.map(BigInt(_)).reduce((a, b) =>
-            lowestCommonMultiple(a, b)))
+    println(cycles.map(BigInt(_)).reduce(lowestCommonMultiple))
 }
 
 main()
