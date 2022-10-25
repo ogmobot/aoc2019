@@ -3,7 +3,6 @@
 #include "intcode.h"
 
 #define VM_COUNT 5
-#define NUM_PERMS 120
 
 #define swap(a, b) do { \
 (a) = (a) ^ (b); \
@@ -68,7 +67,7 @@ int main(void) {
     /* Part 1 */
     heaps_algorithm((struct permutation) {.a={0, 1, 2, 3, 4}}, perms);
     num_t highest_output = 0;
-    for (size_t i = 0; i < NUM_PERMS; i++) {
+    for (size_t i = 0; i < num_perms; i++) {
         for (size_t j = 0; j < VM_COUNT; j++) {
             vms[j] = vm_from_buffer(file_buffer, n);
             push_input(vms[j], perms[i].a[j]);
@@ -91,7 +90,7 @@ int main(void) {
     /* Part 2 */
     heaps_algorithm((struct permutation) {.a={5, 6, 7, 8, 9}}, perms);
     highest_output = 0;
-    for (size_t i = 0; i < NUM_PERMS; i++) {
+    for (size_t i = 0; i < num_perms; i++) {
         for (size_t j = 0; j < VM_COUNT; j++) {
             vms[j] = vm_from_buffer(file_buffer, n);
             push_input(vms[j], perms[i].a[j]);
