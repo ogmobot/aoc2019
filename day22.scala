@@ -36,14 +36,14 @@ def iterateNTimes(linearMod: BigTriple, n: BigInt): BigTriple = {
 
 def modInverse(x: BigInt, mod: BigInt): BigInt = x.modPow(mod - 2, mod)
 
-def idLinearMod(mod: BigInt): BigTriple = (BigInt(1), BigInt(0), mod)
+def idLinearMod(mod: BigInt): BigTriple = (1, 0, mod)
 // Returns the identity linear transform (i.e. y = 1x + 0) for a given modulus
 
 def main(): Unit = {
     val lines = Source.fromFile("input22.txt").getLines().toArray
 
-    val partOneShuffle = lines.foldLeft(idLinearMod(BigInt(10007)))(foldLinear)
-    println(applyLinearMod(BigInt(2019), partOneShuffle))
+    val partOneShuffle = lines.foldLeft(idLinearMod(10007))(foldLinear)
+    println(applyLinearMod(2019, partOneShuffle))
 
     val partTwoCards      = BigInt("119315717514047")
     val partTwoIterations = BigInt("101741582076661")
